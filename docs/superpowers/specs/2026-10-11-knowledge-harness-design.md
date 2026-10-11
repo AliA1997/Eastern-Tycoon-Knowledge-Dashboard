@@ -7,12 +7,24 @@ Status: Draft for review
 
 A local, single-user knowledge harness for the **Eastern Tycoon** project (formerly Dawaar / Desert Tycoon). You ask questions in a local web page; Claude Code on this machine answers **only** from project sources. If the sources do not support an answer, the answer is "No".
 
+### Goal
+
+A working UI that serves as the internal knowledge harness for Eastern Tycoon:
+
+- **Responsive** on mobile, tablet and desktop.
+- **Sync brings in the latest Google Drive documents.** Every press pulls new and changed docs from the Drive folder into `context/drive/` (one-way: Drive → local; Drive is never modified).
+- **Answers reference internal knowledge only** (§3, §4).
+- **Easy to use and understand.** Every control is labeled in plain words, and the page explains itself without instructions.
+
 ### Success criteria
 
 - A question about the code or docs returns an answer with the file paths it came from.
 - A question the sources do not cover returns exactly `No — not in the project context.`
+- Editing a doc in the Drive folder and pressing Sync updates its local copy (`~1`), and the next answer uses the new content.
 - Pressing Sync twice in a row: the second run adds, updates and removes nothing (`+0 ~0 −0`).
 - After a 👎, adding the missing context and asking again produces an answer that uses it.
+- The page is usable with no horizontal scrolling at 360 px (phone), 768 px (tablet) and 1280 px (desktop) wide.
+- Double-clicking an element and queuing a change updates the page without a manual reload and without losing the conversation.
 
 ### Decisions made during brainstorming
 
@@ -34,6 +46,7 @@ Eastern-Tycoon-Knowledge-Dashboard/
   .claude/skills/
     kb-answer/SKILL.md
     kb-sync/SKILL.md
+    kb-ui-edit/SKILL.md
   context/
     drive/                   # one .md per Drive file: <title-slug>--<fileId>.md
     manual/                  # notes added after a thumbs-down
@@ -42,9 +55,14 @@ Eastern-Tycoon-Knowledge-Dashboard/
     listing.json             # latest Drive listing (overwritten each run)
     runs.jsonl               # one line per sync run
   feedback/feedback.jsonl    # one line per rating or added context
+  feedback/ui-changes.jsonl  # one line per queued UI change and its outcome
   scripts/sync-state.mjs     # deterministic plan/commit for sync
   server.js                  # Node standard library only, 127.0.0.1:4317
-  public/index.html          # single page, plain JS, no build step
+  public/
+    index.html               # single page markup, no build step
+    styles.css
+    app.js                   # ask, sync, feedback (plain JS)
+    ui-queue.js              # double-click change queue; NOT editable by kb-ui-edit
   test/                      # node --test suites + stub claude binary
 ```
 
@@ -72,6 +90,8 @@ Eastern-Tycoon-Knowledge-Dashboard/
 General knowledge, the web and MCP tools are not sources.
 
 ## 4. CLAUDE.md (grounding rules)
+
+`CLAUDE.md` loads for every `claude -p` run in this folder, so its rules are scoped: the grounding rules below apply whenever answering a question about Eastern Tycoon. `kb-sync` and `kb-ui-edit` follow their own skill instructions.
 
 - Answer only from the allowed sources in §3.
 - Every answer ends with a `Sources:` list of the file paths read. Drive-derived files also show their Drive URL.
@@ -147,19 +167,66 @@ Binds to `127.0.0.1:4317` only. The `claude` binary path comes from env `CLAUDE_
 | `GET /api/sync/last` | Returns the last run record, or `null` |
 | `POST /api/feedback` `{id, rating: "up"|"down"}` | Appends `{at, id, question, answer, sources, rating}` to `feedback.jsonl` |
 | `POST /api/context` `{id, text}` | Writes `context/manual/<YYYY-MM-DD>-<question-slug>.md` (front matter: original question, date) and appends `{at, id, type: "context-added", path}` to `feedback.jsonl` |
+| `POST /api/ui-change` `{prompt, selector, text, html}` | Adds a UI change request to the queue (§8a). Returns `{id, status: "queued"}` |
+| `GET /api/ui-queue` | Current queue items with status |
+| `GET /api/events` | Server-sent events: `ui-queue` status updates and `reload` |
 
 ### Errors
 
 - A non-zero exit, a timeout (2 minutes for ask, 10 minutes for sync) or unparseable output gives HTTP 502 `{error, detail}`. The page shows it as a red error. A failure is never shown as "No".
 - An empty question gives 400. Manual context file names are slugged to `[a-z0-9-]`, capped at 60 characters, and never contain path separators.
 
-## 8. Page (`public/index.html`)
+## 8. Page (`public/`)
 
 - Header with the title, a **Sync** button and the last-sync summary (`Oct 11 14:02 · +3 ~1 −0`). The button is disabled while a sync runs.
 - A conversation list: each item shows Q, A and its sources, with 👍/👎 below. The chosen rating stays highlighted.
 - 👎 opens a text box with a **Save to context** button. After saving: "Saved — ask again to use it", plus a **Re-ask** button.
 - Input with a **Send** button at the bottom. Enter sends. A "Thinking…" state shows while waiting.
-- Light and dark mode follow the system setting. History lasts only until the page reloads. No chat memory is sent to Claude.
+- Light and dark mode follow the system setting. The conversation is kept in `sessionStorage`, so it survives reloads in the same tab (including the automatic reloads in §8a). No chat memory is sent to Claude.
+
+### Responsive layout
+
+- **Phone (< 600 px):** a single column. The header wraps the Sync button and last-sync summary under the title. The input bar is pinned to the bottom, and buttons are at least 44 px tall for touch.
+- **Tablet (600–1024 px):** a single column with wider margins. The header stays on one line.
+- **Desktop (> 1024 px):** the conversation column is centered with a maximum width of about 760 px for readable line length.
+- No horizontal scrolling at any width. Long file paths in `Sources` wrap.
+- On touch devices, double-tap acts as double-click for §8a.
+
+### Ease of use
+
+- The empty state shows three example questions you can tap, and a single line explaining what the harness answers from.
+- Buttons use words, not just icons: "Sync Drive", "Send", "Add missing context". 👍/👎 have text labels for screen readers.
+- Errors say what happened and what to do next ("Claude Code isn't logged in. Run `claude` in a terminal, then try again.").
+
+## 8a. Double-click UI change queue
+
+Changes apply automatically. There is no Undo button; a bad change is fixed by queuing another prompt.
+
+### Page
+
+- Double-clicking (double-tapping on touch) any element outlines it and opens a small prompt box next to it with **Queue change**. Double-clicks inside text inputs keep their normal behavior.
+- A collapsible **UI changes** panel in the corner lists each request as *queued → working → done / failed*, with a one-line summary from Claude.
+- When a change is done, the page saves the conversation to `sessionStorage` and reloads itself.
+
+### Server
+
+- `POST /api/ui-change` puts `{prompt, selector, text, html (max 2 KB)}` in an in-memory queue.
+- One worker handles the queue in order and broadcasts status over `GET /api/events`:
+  ```
+  claude -p "/kb-ui-edit <json request>" --output-format json
+    --allowedTools "Read(public/**)" "Edit(public/**)" "Write(public/**)"
+  ```
+- After a successful run the worker checks that `public/ui-queue.js` is unchanged. If it changed, the worker restores it with `git checkout -- public/ui-queue.js` and marks the item *failed*.
+- On success the worker commits `public/` with the message `ui: <prompt, first 60 chars>` and sends `reload`. Each outcome is appended to `feedback/ui-changes.jsonl`.
+- A failed item does not block the next one.
+
+### kb-ui-edit skill
+
+Make the smallest change to `index.html`, `styles.css` or `app.js` that does what was asked for the target element. Keep the layout responsive (§8). Never edit `ui-queue.js`. End with a one-line summary of what changed.
+
+### Guardrail
+
+`public/ui-queue.js` holds the double-click and queue code and cannot be edited by `kb-ui-edit`. A change that breaks the rest of the page cannot remove your ability to queue a fix.
 
 ## 9. Testing
 
@@ -178,7 +245,9 @@ Binds to `127.0.0.1:4317` only. The `claude` binary path comes from env `CLAUDE_
    - an overlapping sync gives 409
    - feedback and context requests append to `feedback.jsonl`
    - manual context file names are sanitized
-3. Manual end-to-end checks (done together): the four success criteria in §1.
+   - UI queue runs items in order, a failed item does not block the next, and a change to `ui-queue.js` is reverted and marked failed
+3. Responsive check: Playwright screenshots at 360, 768 and 1280 px wide confirm no horizontal scrolling and readable layout.
+4. Manual end-to-end checks (done together): the success criteria in §1.
 
 ## 10. Out of scope
 
