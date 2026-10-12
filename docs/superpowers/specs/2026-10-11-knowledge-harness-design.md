@@ -72,9 +72,13 @@ Eastern-Tycoon-Knowledge-Dashboard/
 {
   "driveFolderId": "",
   "repoPath": "C:/Users/devmt/mobile-projects/Eastern-Tycoon",
-  "port": 4317
+  "port": 4317,
+  "model": "sonnet",
+  "excludeMcpServers": ["claude_ai_Figma", "claude_ai_Canva", "claude_ai_Claude_Docs", "plugin_supabase_supabase", "plugin_playwright_playwright"]
 }
 ```
+
+`model` is the model every `claude -p` run uses. `excludeMcpServers` lists connectors the sync run hides so their tool definitions don't fill (and bill) the context; only Google Drive is needed.
 
 ### Git
 
@@ -178,7 +182,7 @@ Binds to `127.0.0.1:4317` only. The `claude` binary path comes from env `CLAUDE_
 
 ## 8. Page (`public/`)
 
-- Header with the title, a **Sync** button and the last-sync summary (`Oct 11 14:02 · +3 ~1 −0`). The button is disabled while a sync runs.
+- Header with the title, a **Sync Drive** button and the last-sync summary in words (`Synced Oct 11, 2:02 PM — 3 new, 1 updated, 0 removed`). The button is disabled while a sync runs.
 - A conversation list: each item shows Q, A and its sources, with 👍/👎 below. The chosen rating stays highlighted.
 - 👎 opens a text box with a **Save to context** button. After saving: "Saved — ask again to use it", plus a **Re-ask** button.
 - Input with a **Send** button at the bottom. Enter sends. A "Thinking…" state shows while waiting.
