@@ -62,7 +62,6 @@ body {
 .brand h1 { margin: 0; font-size: 1.15rem; }
 .tagline { margin: 2px 0 0; color: var(--muted); font-size: .85rem; }
 .sync { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-#sync-btn { text-transform: uppercase; }
 .sync-status { color: var(--muted); font-size: .85rem; }
 .sync-status.is-error { color: var(--error-text); }
 
