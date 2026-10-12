@@ -37,4 +37,4 @@ Sources:
 - <path of each file you used: relative to the harness folder for context/ files, relative to repoPath for repo files>
 - <for Drive files: context/drive/<file>.md — <url from its front matter>>
 
-The `Sources:` block is required for every answer except the "No" reply. List only files you actually read and used.
+The `Sources:` block is required for every answer except the "No" reply. List only files you actually read and used. Every line in it is a file path (plus the Drive URL for Drive files), nothing else: notes such as "nothing in context/ mentioned this" belong in the answer above, not in `Sources:`. The `Sources:` block is the last thing in your reply.
