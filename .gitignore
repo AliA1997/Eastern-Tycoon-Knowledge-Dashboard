@@ -1,0 +1,6 @@
+node_modules/
+context/drive/
+sync/
+feedback/
+*.tmp
+.superpowers/

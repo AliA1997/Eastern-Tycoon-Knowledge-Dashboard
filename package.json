@@ -1,0 +1,10 @@
+{
+  "name": "eastern-tycoon-knowledge",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/*.test.js\""
+  }
+}

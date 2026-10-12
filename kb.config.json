@@ -1,0 +1,7 @@
+{
+  "driveFolderId": "",
+  "repoPath": "C:/Users/devmt/mobile-projects/Eastern-Tycoon",
+  "port": 4317,
+  "model": "sonnet",
+  "excludeMcpServers": ["claude_ai_Figma", "claude_ai_Canva", "claude_ai_Claude_Docs", "plugin_supabase_supabase", "plugin_playwright_playwright"]
+}
