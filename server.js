@@ -13,6 +13,8 @@ import { appendJsonl, lastJsonl, readJsonl } from './lib/jsonl.js';
 import { formatFrontmatter } from './lib/frontmatter.js';
 import { slugify } from './lib/slug.js';
 import { PATHS } from './lib/sync-state.js';
+import { createUiQueue } from './lib/ui-queue.js';
+import { createUiEditor } from './lib/ui-editor.js';
 
 const MAX_BODY_BYTES = 64 * 1024;
 const TYPES = {
@@ -65,6 +67,17 @@ export function createApp({ root, claudeCmd, timeouts = {}, uiEditor } = {}) {
   const hub = createEventHub();
   const feedbackLog = join(root, 'feedback/feedback.jsonl');
   let syncing = false;
+  const queue = createUiQueue({
+    runEdit: uiEditor ?? createUiEditor({ root, claudeCmd, timeoutMs: limits.uiEdit }),
+    onChange: (items) => hub.send('ui-queue', items),
+    onSettled: async (item) => {
+      await appendJsonl(join(root, 'feedback/ui-changes.jsonl'), {
+        at: new Date().toISOString(), id: item.id, prompt: item.prompt, selector: item.selector ?? '',
+        status: item.status, summary: item.summary, error: item.error,
+      });
+      if (item.status === 'done') hub.send('reload', { id: item.id });
+    },
+  });
 
   const routes = {
     'GET /api/sync/last': async () => [200, await lastJsonl(join(root, PATHS.runs))],
@@ -119,6 +132,20 @@ export function createApp({ root, claudeCmd, timeouts = {}, uiEditor } = {}) {
       });
       return [200, { ok: true }];
     },
+
+    'POST /api/ui-change': async (body) => {
+      const prompt = str(body.prompt).trim();
+      if (!prompt) throw new HttpError(400, 'Describe the change first.');
+      if (prompt.length > 2000) throw new HttpError(400, 'Change requests are limited to 2,000 characters.');
+      return [202, queue.add({
+        prompt,
+        selector: str(body.selector).slice(0, 500),
+        text: str(body.text).slice(0, 500),
+        html: str(body.html).slice(0, 2048),
+      })];
+    },
+
+    'GET /api/ui-queue': async () => [200, queue.list()],
 
     'POST /api/context': async (body) => {
       const text = str(body.text).trim();
@@ -181,6 +208,7 @@ export function createApp({ root, claudeCmd, timeouts = {}, uiEditor } = {}) {
   server.on('close', () => hub.close());
   server.hub = hub;
   server.routes = routes;
+  server.queue = queue;
   return server;
 }
 
