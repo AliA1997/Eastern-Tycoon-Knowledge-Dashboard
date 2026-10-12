@@ -1,1 +1,44 @@
-/* index.html */
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Eastern Tycoon Knowledge</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Eastern Tycoon Knowledge</h1>
+      <p class="tagline">Answers come only from the project's Drive docs, its code, and notes you add.</p>
+    </div>
+    <div class="sync">
+      <button id="sync-btn" class="btn btn-secondary" type="button">Sync Drive</button>
+      <span id="sync-status" class="sync-status" aria-live="polite">Not synced yet</span>
+    </div>
+  </header>
+
+  <main class="conversation">
+    <section id="empty" class="empty">
+      <h2>Ask anything about Eastern Tycoon</h2>
+      <p>If the answer isn't in the project, you'll get a plain "No", never a guess.</p>
+      <div class="examples">
+        <button type="button" class="example">How are dice rolls resolved?</button>
+        <button type="button" class="example">How do I run the backend locally?</button>
+        <button type="button" class="example">What changes in the Eastern Tycoon rebrand?</button>
+      </div>
+    </section>
+    <ol id="messages" class="messages" aria-live="polite"></ol>
+  </main>
+
+  <form id="ask-form" class="composer">
+    <label for="question" class="visually-hidden">Your question</label>
+    <textarea id="question" rows="1" placeholder="Ask about Eastern Tycoon…" autocomplete="off"></textarea>
+    <button class="btn btn-primary" type="submit">Send</button>
+  </form>
+
+  <script src="/app.js" defer></script>
+  <script src="/ui-queue.js" defer></script>
+</body>
+</html>
